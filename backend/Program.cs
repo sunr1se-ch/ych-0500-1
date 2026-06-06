@@ -171,7 +171,8 @@ app.MapPost("/api/impressions", async (CreateImpressionDto dto, AppDbContext db,
     if (incidents.Any())
         db.AlignmentIncidents.AddRange(incidents);
 
-    await db.SaveChangesAsync(ct);
+    if (warnings.Any() || incidents.Any())
+        await db.SaveChangesAsync(ct);
 
     var result = new
     {

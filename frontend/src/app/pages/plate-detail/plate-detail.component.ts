@@ -2,6 +2,7 @@ import { Component, OnInit, ElementRef, ViewChild, AfterViewChecked } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { PlateDetail, Impression, Warning, Incident, CreateImpressionRequest } from '../../models/plate';
 
@@ -259,18 +260,32 @@ export class PlateDetailComponent implements OnInit, AfterViewChecked {
     });
   }
 
-  downloadReport(): void {
-    this.api.downloadReport(this.plateId).subscribe({
-      next: (blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `plate_${this.plateId}_report.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
-      error: (err) => alert('下载失败: ' + (err.error?.title || err.message))
-    });
+  async downloadReport(): Promise<void> {
+    try {
+      const blob = await firstValueFrom(this.api.downloadReport(this.plateId));
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `plate_${this.plateId}_report.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      let errorMessage = '下载失败';
+      if (err.error instanceof Blob) {
+        try {
+          const errorText = await err.error.text();
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.title || errorJson.message || errorMessage;
+        } catch {
+          errorMessage = '下载失败，请稍后重试';
+        }
+      } else if (err.error?.title) {
+        errorMessage = err.error.title;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      alert(errorMessage);
+    }
   }
 
   acknowledgeWarning(id: number): void {
@@ -284,10 +299,83 @@ export class PlateDetailComponent implements OnInit, AfterViewChecked {
     return new Date(date).toLocaleString('zh-CN');
   }
 
-  getOffsetClass(offset: number): string {
+  getOffsetStyle(offset: number): { [key: string]: string } {
     const abs = Math.abs(offset);
-    if (abs > 0.1) return 'color: #d4380d; font-weight: bold';
-    if (abs > 0.08) return 'color: #fa8c16; font-weight: bold';
-    return '';
+    if (abs > 0.1) return { color: '#d4380d', 'font-weight': 'bold' };
+    if (abs > 0.08) return { color: '#fa8c16', 'font-weight': 'bold' };
+    return {};
+  }
+
+  clampPercentage(value: number): number {
+    return Math.min(value, 100);
+  }
+
+  getStatusBadgeClass(): string {
+    if (!this.plate) return 'badge-success';
+    if (this.plate.isLocked) return 'badge-danger';
+    if (this.plate.lifePercentage >= 80) return 'badge-warning';
+    return 'badge-success';
+  }
+
+  getStatusText(): string {
+    if (!this.plate) return '正常';
+    if (this.plate.isLocked) return '已锁定';
+    if (this.plate.lifePercentage >= 80) return '寿命预警';
+    return '正常';
+  }
+
+  getLifePercentageColor(): string {
+    if (!this.plate) return '#52c41a';
+    if (this.plate.lifePercentage >= 100) return '#ff4d4f';
+    if (this.plate.lifePercentage >= 80) return '#faad14';
+    return '#52c41a';
+  }
+
+  hasImpressions(): boolean {
+    return !!this.plate?.impressions && this.plate.impressions.length > 0;
+  }
+
+  hasWarnings(): boolean {
+    return !!this.plate?.warnings && this.plate.warnings.length > 0;
+  }
+
+  hasIncidents(): boolean {
+    return !!this.plate?.incidents && this.plate.incidents.length > 0;
+  }
+
+  hasUnacknowledgedWarnings(): boolean {
+    return !!this.plate?.warnings && this.plate.warnings.filter(w => !w.isAcknowledged).length > 0;
+  }
+
+  getUnacknowledgedWarningCount(): number {
+    return this.plate?.warnings?.filter(w => !w.isAcknowledged).length || 0;
+  }
+
+  getWarningBadgeClass(type: string): string {
+    return type === 'LifeExceeded' ? 'badge-danger' : 'badge-warning';
+  }
+
+  getWarningTypeText(type: string): string {
+    return type === 'LifeExceeded' ? '寿命超限' : '寿命预警';
+  }
+
+  getWarningStatusBadgeClass(acknowledged: boolean): string {
+    return acknowledged ? 'badge-success' : 'badge-warning';
+  }
+
+  getWarningStatusText(acknowledged: boolean): string {
+    return acknowledged ? '已确认' : '待确认';
+  }
+
+  getIncidentStatusBadgeClass(resolved: boolean): string {
+    return resolved ? 'badge-success' : 'badge-danger';
+  }
+
+  getIncidentStatusText(resolved: boolean): string {
+    return resolved ? '已解决' : '待处理';
+  }
+
+  getTabActiveClass(tab: string): string {
+    return this.activeTab === tab ? 'active' : '';
   }
 }

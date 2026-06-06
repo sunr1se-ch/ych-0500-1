@@ -122,4 +122,20 @@ export class PlateListComponent implements OnInit {
       locked: this.plates.filter((p) => p.isLocked).length
     };
   }
+
+  getTotalCount(): number {
+    return this.plates.length;
+  }
+
+  getWarningCount(): number {
+    return this.plates.filter((p) => p.lifePercentage >= 80 && !p.isLocked).length;
+  }
+
+  getLockedCount(): number {
+    return this.plates.filter((p) => p.isLocked).length;
+  }
+
+  getLifePercentageWidth(percentage: number): string {
+    return Math.min(percentage, 100) + '%';
+  }
 }

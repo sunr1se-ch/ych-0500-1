@@ -59,17 +59,13 @@ public class ImpressionProcessor(AppDbContext db) : IImpressionProcessor
             }
         }
 
+        await db.SaveChangesAsync(ct);
+
         var recentImpressions = await db.Impressions
             .Where(i => i.PlateId == plate.Id)
             .OrderByDescending(i => i.CreatedAt)
             .Take(ConsecutiveFailureCount)
             .ToListAsync(ct);
-
-        recentImpressions.Add(impression);
-        recentImpressions = recentImpressions
-            .OrderByDescending(i => i.CreatedAt)
-            .Take(ConsecutiveFailureCount)
-            .ToList();
 
         if (recentImpressions.Count >= ConsecutiveFailureCount)
         {

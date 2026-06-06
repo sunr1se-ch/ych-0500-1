@@ -6,15 +6,15 @@
 <div class="stats-grid">
   <div class="stat-card">
     <h3>版材总数</h3>
-    <div class="stat-value">{{ getStats().total }}</div>
+    <div class="stat-value">{{ getTotalCount() }}</div>
   </div>
   <div class="stat-card">
     <h3>寿命预警</h3>
-    <div class="stat-value warning">{{ getStats().warning }}</div>
+    <div class="stat-value warning">{{ getWarningCount() }}</div>
   </div>
   <div class="stat-card">
     <h3>已锁定</h3>
-    <div class="stat-value danger">{{ getStats().locked }}</div>
+    <div class="stat-value danger">{{ getLockedCount() }}</div>
   </div>
 </div>
 
@@ -43,7 +43,7 @@
             <div class="progress-bar" style="flex: 1">
               <div
                 class="progress-fill {{ getProgressColor(plate.lifePercentage) }}"
-                [style.width]="plate.lifePercentage + '%'"
+                [style.width]="getLifePercentageWidth(plate.lifePercentage)"
               ></div>
             </div>
             <span style="font-size: 12px; color: #666">{{ plate.impressionCount }}/{{ plate.lifeLimit }}</span>

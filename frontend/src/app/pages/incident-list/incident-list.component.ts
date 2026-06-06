@@ -50,6 +50,41 @@ export class IncidentListComponent implements OnInit {
     };
   }
 
+  getTotalCount(): number {
+    return this.incidents.length;
+  }
+
+  getPendingCount(): number {
+    return this.incidents.filter((i) => !i.isResolved).length;
+  }
+
+  getResolvedCount(): number {
+    return this.incidents.filter((i) => i.isResolved).length;
+  }
+
+  getFilterActiveClass(filterValue: string): string {
+    return this.filter === filterValue ? 'active' : '';
+  }
+
+  setFilter(filterValue: string): void {
+    this.filter = filterValue;
+  }
+
+  getIncidentStatusBadgeClass(resolved: boolean): string {
+    return resolved ? 'badge-success' : 'badge-danger';
+  }
+
+  getIncidentStatusText(resolved: boolean): string {
+    return resolved ? '已解决' : '待处理';
+  }
+
+  getEmptyMessage(): string {
+    if (this.loading) return '';
+    if (this.filter === 'all') return '暂无套准异常记录';
+    if (this.filter === 'pending') return '暂无待处理的异常';
+    return '暂无已解决的异常';
+  }
+
   openResolveModal(incident: Incident): void {
     this.selectedIncident = incident;
     this.resolveNotes = '';

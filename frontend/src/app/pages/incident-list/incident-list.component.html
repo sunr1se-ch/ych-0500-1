@@ -2,22 +2,22 @@
   <h1>套准异常单</h1>
   <div class="tabs" style="margin-bottom: 0; border: none">
     <button
-      class="tab-btn {{ filter === 'all' ? 'active' : '' }}"
-      (click)="filter = 'all'"
+      class="tab-btn {{ getFilterActiveClass('all') }}"
+      (click)="setFilter('all')"
     >
-      全部 ({{ getStats().total }})
+      全部 ({{ getTotalCount() }})
     </button>
     <button
-      class="tab-btn {{ filter === 'pending' ? 'active' : '' }}"
-      (click)="filter = 'pending'"
+      class="tab-btn {{ getFilterActiveClass('pending') }}"
+      (click)="setFilter('pending')"
     >
-      待处理 ({{ getStats().pending }})
+      待处理 ({{ getPendingCount() }})
     </button>
     <button
-      class="tab-btn {{ filter === 'resolved' ? 'active' : '' }}"
-      (click)="filter = 'resolved'"
+      class="tab-btn {{ getFilterActiveClass('resolved') }}"
+      (click)="setFilter('resolved')"
     >
-      已解决 ({{ getStats().resolved }})
+      已解决 ({{ getResolvedCount() }})
     </button>
   </div>
 </div>
@@ -48,8 +48,8 @@
         <td>#{{ incident.startImpressionId }} - #{{ incident.endImpressionId }}</td>
         <td>{{ incident.notes }}</td>
         <td>
-          <span class="badge {{ incident.isResolved ? 'badge-success' : 'badge-danger' }}">
-            {{ incident.isResolved ? '已解决' : '待处理' }}
+          <span class="badge {{ getIncidentStatusBadgeClass(incident.isResolved) }}">
+            {{ getIncidentStatusText(incident.isResolved) }}
           </span>
         </td>
         <td>{{ formatDate(incident.createdAt) }}</td>
@@ -78,9 +78,7 @@
           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <p *ngIf="loading">加载中...</p>
-      <p *ngIf="!loading && filter === 'all'">暂无套准异常记录</p>
-      <p *ngIf="!loading && filter === 'pending'">暂无待处理的异常</p>
-      <p *ngIf="!loading && filter === 'resolved'">暂无已解决的异常</p>
+      <p *ngIf="!loading">{{ getEmptyMessage() }}</p>
     </div>
   </ng-template>
 </div>

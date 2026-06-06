@@ -52,7 +52,7 @@ export class ApiService {
 
   downloadReport(id: number): Observable<Blob> {
     return this.http.get(`${this.baseUrl}/plates/${id}/report`, {
-      responseType: 'blob'
-    });
+      responseType: 'blob' as 'json'
+    }) as unknown as Observable<Blob>;
   }
 }

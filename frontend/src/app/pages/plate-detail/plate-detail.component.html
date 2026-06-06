@@ -25,13 +25,13 @@
     </div>
   </div>
 
-  <div class="card" *ngIf="plate.warnings && plate.warnings.filter(w => !w.isAcknowledged).length > 0">
+  <div class="card" *ngIf="hasUnacknowledgedWarnings()">
     <div class="alert alert-warning">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round"
           d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      有 {{ plate.warnings.filter(w => !w.isAcknowledged).length }} 条未确认的警告
+      有 {{ getUnacknowledgedWarningCount() }} 条未确认的警告
     </div>
   </div>
 
@@ -57,8 +57,8 @@
       <div class="detail-item">
         <span class="detail-label">状态</span>
         <span class="detail-value">
-          <span class="badge {{ plate.isLocked ? 'badge-danger' : plate.lifePercentage >= 80 ? 'badge-warning' : 'badge-success' }}">
-            {{ plate.isLocked ? '已锁定' : plate.lifePercentage >= 80 ? '寿命预警' : '正常' }}
+          <span class="badge {{ getStatusBadgeClass() }}">
+            {{ getStatusText() }}
           </span>
         </span>
       </div>
@@ -74,11 +74,11 @@
         <div class="progress-bar" style="flex: 1; height: 16px">
           <div
             class="progress-fill {{ getProgressColor(plate.lifePercentage) }}"
-            [style.width]="Math.min(plate.lifePercentage, 100) + '%'"
+            [style.width]="clampPercentage(plate.lifePercentage) + '%'"
             style="height: 16px"
           ></div>
         </div>
-        <span style="font-size: 20px; font-weight: 700; color: {{ plate.lifePercentage >= 100 ? '#ff4d4f' : plate.lifePercentage >= 80 ? '#faad14' : '#52c41a' }}">
+        <span style="font-size: 20px; font-weight: 700; color: {{ getLifePercentageColor() }}">
           {{ plate.lifePercentage }}%
         </span>
       </div>
@@ -89,17 +89,17 @@
   </div>
 
   <div class="tabs">
-    <button class="tab-btn {{ activeTab === 'timeline' ? 'active' : '' }}" (click)="setTab('timeline')">
+    <button class="tab-btn {{ getTabActiveClass('timeline') }}" (click)="setTab('timeline')">
       压印散点图
     </button>
-    <button class="tab-btn {{ activeTab === 'impressions' ? 'active' : '' }}" (click)="setTab('impressions')">
-      压印记录 ({{ plate.impressions?.length || 0 }})
+    <button class="tab-btn {{ getTabActiveClass('impressions') }}" (click)="setTab('impressions')">
+      压印记录 ({{ plate.impressions.length }})
     </button>
-    <button class="tab-btn {{ activeTab === 'warnings' ? 'active' : '' }}" (click)="setTab('warnings')">
-      警告记录 ({{ plate.warnings?.length || 0 }})
+    <button class="tab-btn {{ getTabActiveClass('warnings') }}" (click)="setTab('warnings')">
+      警告记录 ({{ plate.warnings.length }})
     </button>
-    <button class="tab-btn {{ activeTab === 'incidents' ? 'active' : '' }}" (click)="setTab('incidents')">
-      套准异常 ({{ plate.incidents?.length || 0 }})
+    <button class="tab-btn {{ getTabActiveClass('incidents') }}" (click)="setTab('incidents')">
+      套准异常 ({{ plate.incidents.length }})
     </button>
   </div>
 
@@ -115,7 +115,7 @@
 
   <div class="card" *ngIf="activeTab === 'impressions'">
     <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">压印记录</h2>
-    <table class="table" *ngIf="plate.impressions?.length > 0; else emptyImpressions">
+    <table class="table" *ngIf="hasImpressions(); else emptyImpressions">
       <thead>
         <tr>
           <th>ID</th>
@@ -128,8 +128,8 @@
       <tbody>
         <tr *ngFor="let imp of plate.impressions">
           <td>{{ imp.id }}</td>
-          <td [style]="getOffsetClass(imp.offsetX)">{{ imp.offsetX | number : '1.4-4' }}</td>
-          <td [style]="getOffsetClass(imp.offsetY)">{{ imp.offsetY | number : '1.4-4' }}</td>
+          <td [ngStyle]="getOffsetStyle(imp.offsetX)">{{ imp.offsetX | number : '1.4-4' }}</td>
+          <td [ngStyle]="getOffsetStyle(imp.offsetY)">{{ imp.offsetY | number : '1.4-4' }}</td>
           <td>{{ imp.actualTemperature | number : '1.1-1' }}</td>
           <td>{{ formatDate(imp.createdAt) }}</td>
         </tr>
@@ -144,7 +144,7 @@
 
   <div class="card" *ngIf="activeTab === 'warnings'">
     <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">警告记录</h2>
-    <table class="table" *ngIf="plate.warnings?.length > 0; else emptyWarnings">
+    <table class="table" *ngIf="hasWarnings(); else emptyWarnings">
       <thead>
         <tr>
           <th>类型</th>
@@ -157,14 +157,14 @@
       <tbody>
         <tr *ngFor="let w of plate.warnings">
           <td>
-            <span class="badge {{ w.warningType === 'LifeExceeded' ? 'badge-danger' : 'badge-warning' }}">
-              {{ w.warningType === 'LifeExceeded' ? '寿命超限' : '寿命预警' }}
+            <span class="badge {{ getWarningBadgeClass(w.warningType) }}">
+              {{ getWarningTypeText(w.warningType) }}
             </span>
           </td>
           <td>{{ w.message }}</td>
           <td>
-            <span class="badge {{ w.isAcknowledged ? 'badge-success' : 'badge-warning' }}">
-              {{ w.isAcknowledged ? '已确认' : '待确认' }}
+            <span class="badge {{ getWarningStatusBadgeClass(w.isAcknowledged) }}">
+              {{ getWarningStatusText(w.isAcknowledged) }}
             </span>
           </td>
           <td>{{ formatDate(w.createdAt) }}</td>
@@ -189,7 +189,7 @@
 
   <div class="card" *ngIf="activeTab === 'incidents'">
     <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">套准异常记录</h2>
-    <table class="table" *ngIf="plate.incidents?.length > 0; else emptyIncidents">
+    <table class="table" *ngIf="hasIncidents(); else emptyIncidents">
       <thead>
         <tr>
           <th>ID</th>
@@ -209,8 +209,8 @@
           <td>{{ inc.startImpressionId }} - {{ inc.endImpressionId }}</td>
           <td>{{ inc.notes }}</td>
           <td>
-            <span class="badge {{ inc.isResolved ? 'badge-success' : 'badge-danger' }}">
-              {{ inc.isResolved ? '已解决' : '待处理' }}
+            <span class="badge {{ getIncidentStatusBadgeClass(inc.isResolved) }}">
+              {{ getIncidentStatusText(inc.isResolved) }}
             </span>
           </td>
           <td>{{ formatDate(inc.createdAt) }}</td>
