@@ -1,0 +1,278 @@
+<a class="btn btn-outline" routerLink="/plates" style="margin-bottom: 16px; display: inline-block">&larr; 返回列表</a>
+
+<ng-container *ngIf="plate; else loading">
+  <div class="page-header">
+    <h1>版材详情 - {{ plate.steelPlateNumber }}</h1>
+    <div class="actions">
+      <button class="btn btn-outline" (click)="downloadReport()">导出PDF报告</button>
+      <button
+        class="btn btn-primary"
+        (click)="openImpressionModal()"
+        [disabled]="plate.isLocked"
+      >
+        + 记录压印
+      </button>
+    </div>
+  </div>
+
+  <div class="card" *ngIf="plate.isLocked">
+    <div class="alert alert-danger">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 15v2m0 0v2m0-2h2m-2 0H10m11.938-6.377l-9.193 15.91a1.997 1.997 0 01-3.49 0L.062 10.623A2 2 0 011.809 7.67h14.382a2 2 0 011.747 2.953z" />
+      </svg>
+      该版材已达到寿命极限，已自动锁定，无法继续压印
+    </div>
+  </div>
+
+  <div class="card" *ngIf="plate.warnings && plate.warnings.filter(w => !w.isAcknowledged).length > 0">
+    <div class="alert alert-warning">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      有 {{ plate.warnings.filter(w => !w.isAcknowledged).length }} 条未确认的警告
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size: 18px; margin-bottom: 20px; font-weight: 600">基本信息</h2>
+    <div class="detail-grid">
+      <div class="detail-item">
+        <span class="detail-label">钢版编号</span>
+        <span class="detail-value">{{ plate.steelPlateNumber }}</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">设计凹深</span>
+        <span class="detail-value">{{ plate.designDepth }} μm</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">寿命极限</span>
+        <span class="detail-value">{{ plate.lifeLimit }} 次</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">当前压印次数</span>
+        <span class="detail-value">{{ plate.impressionCount }} 次</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">状态</span>
+        <span class="detail-value">
+          <span class="badge {{ plate.isLocked ? 'badge-danger' : plate.lifePercentage >= 80 ? 'badge-warning' : 'badge-success' }}">
+            {{ plate.isLocked ? '已锁定' : plate.lifePercentage >= 80 ? '寿命预警' : '正常' }}
+          </span>
+        </span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">登记时间</span>
+        <span class="detail-value">{{ formatDate(plate.createdAt) }}</span>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px">
+      <h3 style="font-size: 14px; margin-bottom: 12px; color: #666">寿命进度</h3>
+      <div style="display: flex; align-items: center; gap: 20px">
+        <div class="progress-bar" style="flex: 1; height: 16px">
+          <div
+            class="progress-fill {{ getProgressColor(plate.lifePercentage) }}"
+            [style.width]="Math.min(plate.lifePercentage, 100) + '%'"
+            style="height: 16px"
+          ></div>
+        </div>
+        <span style="font-size: 20px; font-weight: 700; color: {{ plate.lifePercentage >= 100 ? '#ff4d4f' : plate.lifePercentage >= 80 ? '#faad14' : '#52c41a' }}">
+          {{ plate.lifePercentage }}%
+        </span>
+      </div>
+      <p style="font-size: 13px; color: #999; margin-top: 8px">
+        {{ plate.impressionCount }} / {{ plate.lifeLimit }} 次
+      </p>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn {{ activeTab === 'timeline' ? 'active' : '' }}" (click)="setTab('timeline')">
+      压印散点图
+    </button>
+    <button class="tab-btn {{ activeTab === 'impressions' ? 'active' : '' }}" (click)="setTab('impressions')">
+      压印记录 ({{ plate.impressions?.length || 0 }})
+    </button>
+    <button class="tab-btn {{ activeTab === 'warnings' ? 'active' : '' }}" (click)="setTab('warnings')">
+      警告记录 ({{ plate.warnings?.length || 0 }})
+    </button>
+    <button class="tab-btn {{ activeTab === 'incidents' ? 'active' : '' }}" (click)="setTab('incidents')">
+      套准异常 ({{ plate.incidents?.length || 0 }})
+    </button>
+  </div>
+
+  <div class="card" *ngIf="activeTab === 'timeline'">
+    <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">偏移热力散点图</h2>
+    <p style="font-size: 13px; color: #999; margin-bottom: 16px">
+      红点虚线表示 0.08 μm 阈值，超出范围视为异常。点颜色越深表示偏移越大。
+    </p>
+    <div class="scatter-chart">
+      <canvas #scatterCanvas class="chart-canvas"></canvas>
+    </div>
+  </div>
+
+  <div class="card" *ngIf="activeTab === 'impressions'">
+    <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">压印记录</h2>
+    <table class="table" *ngIf="plate.impressions?.length > 0; else emptyImpressions">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>X轴偏移 (μm)</th>
+          <th>Y轴偏移 (μm)</th>
+          <th>温度 (°C)</th>
+          <th>时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let imp of plate.impressions">
+          <td>{{ imp.id }}</td>
+          <td [style]="getOffsetClass(imp.offsetX)">{{ imp.offsetX | number : '1.4-4' }}</td>
+          <td [style]="getOffsetClass(imp.offsetY)">{{ imp.offsetY | number : '1.4-4' }}</td>
+          <td>{{ imp.actualTemperature | number : '1.1-1' }}</td>
+          <td>{{ formatDate(imp.createdAt) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #emptyImpressions>
+      <div class="empty-state">
+        <p>暂无压印记录</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="card" *ngIf="activeTab === 'warnings'">
+    <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">警告记录</h2>
+    <table class="table" *ngIf="plate.warnings?.length > 0; else emptyWarnings">
+      <thead>
+        <tr>
+          <th>类型</th>
+          <th>消息</th>
+          <th>状态</th>
+          <th>时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let w of plate.warnings">
+          <td>
+            <span class="badge {{ w.warningType === 'LifeExceeded' ? 'badge-danger' : 'badge-warning' }}">
+              {{ w.warningType === 'LifeExceeded' ? '寿命超限' : '寿命预警' }}
+            </span>
+          </td>
+          <td>{{ w.message }}</td>
+          <td>
+            <span class="badge {{ w.isAcknowledged ? 'badge-success' : 'badge-warning' }}">
+              {{ w.isAcknowledged ? '已确认' : '待确认' }}
+            </span>
+          </td>
+          <td>{{ formatDate(w.createdAt) }}</td>
+          <td>
+            <button
+              *ngIf="!w.isAcknowledged"
+              class="btn btn-sm btn-outline"
+              (click)="acknowledgeWarning(w.id)"
+            >
+              确认
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #emptyWarnings>
+      <div class="empty-state">
+        <p>暂无警告记录</p>
+      </div>
+    </ng-template>
+  </div>
+
+  <div class="card" *ngIf="activeTab === 'incidents'">
+    <h2 style="font-size: 16px; margin-bottom: 16px; font-weight: 600">套准异常记录</h2>
+    <table class="table" *ngIf="plate.incidents?.length > 0; else emptyIncidents">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>轴</th>
+          <th>压印范围</th>
+          <th>备注</th>
+          <th>状态</th>
+          <th>时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let inc of plate.incidents">
+          <td>{{ inc.id }}</td>
+          <td>
+            <span class="badge badge-danger">{{ inc.axis }}轴</span>
+          </td>
+          <td>{{ inc.startImpressionId }} - {{ inc.endImpressionId }}</td>
+          <td>{{ inc.notes }}</td>
+          <td>
+            <span class="badge {{ inc.isResolved ? 'badge-success' : 'badge-danger' }}">
+              {{ inc.isResolved ? '已解决' : '待处理' }}
+            </span>
+          </td>
+          <td>{{ formatDate(inc.createdAt) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <ng-template #emptyIncidents>
+      <div class="empty-state">
+        <p>暂无套准异常记录</p>
+      </div>
+    </ng-template>
+  </div>
+</ng-container>
+
+<ng-template #loading>
+  <div class="empty-state">
+    <p *ngIf="loading">加载中...</p>
+    <p *ngIf="!loading">未找到该版材</p>
+  </div>
+</ng-template>
+
+<div class="modal-overlay" *ngIf="showImpressionModal" (click.self)="closeImpressionModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>记录压印</h2>
+      <button class="close-btn" (click)="closeImpressionModal()">&times;</button>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>X轴偏移 (μm)</label>
+        <input
+          type="number"
+          [(ngModel)]="newImpression.offsetX"
+          placeholder="例如: 0.05"
+          step="0.0001"
+        />
+      </div>
+      <div class="form-group">
+        <label>Y轴偏移 (μm)</label>
+        <input
+          type="number"
+          [(ngModel)]="newImpression.offsetY"
+          placeholder="例如: -0.03"
+          step="0.0001"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>实压温度 (°C)</label>
+      <input
+        type="number"
+        [(ngModel)]="newImpression.actualTemperature"
+        placeholder="例如: 120"
+        step="0.1"
+      />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeImpressionModal()">取消</button>
+      <button class="btn btn-primary" (click)="submitImpression()">提交</button>
+    </div>
+  </div>
+</div>

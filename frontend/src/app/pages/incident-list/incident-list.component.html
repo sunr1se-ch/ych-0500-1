@@ -1,0 +1,120 @@
+<div class="page-header">
+  <h1>套准异常单</h1>
+  <div class="tabs" style="margin-bottom: 0; border: none">
+    <button
+      class="tab-btn {{ filter === 'all' ? 'active' : '' }}"
+      (click)="filter = 'all'"
+    >
+      全部 ({{ getStats().total }})
+    </button>
+    <button
+      class="tab-btn {{ filter === 'pending' ? 'active' : '' }}"
+      (click)="filter = 'pending'"
+    >
+      待处理 ({{ getStats().pending }})
+    </button>
+    <button
+      class="tab-btn {{ filter === 'resolved' ? 'active' : '' }}"
+      (click)="filter = 'resolved'"
+    >
+      已解决 ({{ getStats().resolved }})
+    </button>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table" *ngIf="filteredIncidents.length > 0; else empty">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>钢版编号</th>
+        <th>轴</th>
+        <th>压印范围</th>
+        <th>备注</th>
+        <th>状态</th>
+        <th>创建时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let incident of filteredIncidents">
+        <td>{{ incident.id }}</td>
+        <td>
+          <a [routerLink]="['/plates', incident.plateId]">{{ incident.steelPlateNumber }}</a>
+        </td>
+        <td>
+          <span class="badge badge-danger">{{ incident.axis }}轴</span>
+        </td>
+        <td>#{{ incident.startImpressionId }} - #{{ incident.endImpressionId }}</td>
+        <td>{{ incident.notes }}</td>
+        <td>
+          <span class="badge {{ incident.isResolved ? 'badge-success' : 'badge-danger' }}">
+            {{ incident.isResolved ? '已解决' : '待处理' }}
+          </span>
+        </td>
+        <td>{{ formatDate(incident.createdAt) }}</td>
+        <td>
+          <div class="actions">
+            <button
+              *ngIf="!incident.isResolved"
+              class="btn btn-sm btn-success"
+              (click)="openResolveModal(incident)"
+            >
+              标记已解决
+            </button>
+            <a class="btn btn-sm btn-primary" [routerLink]="['/plates', incident.plateId]">
+              查看版材
+            </a>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <ng-template #empty>
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <p *ngIf="loading">加载中...</p>
+      <p *ngIf="!loading && filter === 'all'">暂无套准异常记录</p>
+      <p *ngIf="!loading && filter === 'pending'">暂无待处理的异常</p>
+      <p *ngIf="!loading && filter === 'resolved'">暂无已解决的异常</p>
+    </div>
+  </ng-template>
+</div>
+
+<div class="modal-overlay" *ngIf="showResolveModal" (click.self)="closeResolveModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>标记异常为已解决</h2>
+      <button class="close-btn" (click)="closeResolveModal()">&times;</button>
+    </div>
+
+    <div *ngIf="selectedIncident" style="margin-bottom: 20px; padding: 16px; background: #fafafa; border-radius: 6px">
+      <p><strong>版材:</strong> {{ selectedIncident.steelPlateNumber }}</p>
+      <p><strong>轴:</strong> {{ selectedIncident.axis }}轴</p>
+      <p><strong>压印范围:</strong> #{{ selectedIncident.startImpressionId }} - #{{ selectedIncident.endImpressionId }}</p>
+      <p><strong>原备注:</strong> {{ selectedIncident.notes }}</p>
+    </div>
+
+    <div class="form-group">
+      <label>处理备注 (可选)</label>
+      <textarea
+        [(ngModel)]="resolveNotes"
+        placeholder="请输入处理措施或备注..."
+        rows="4"
+        maxlength="500"
+      ></textarea>
+      <p style="font-size: 12px; color: #999; margin-top: 4px">
+        {{ resolveNotes.length }}/500
+      </p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeResolveModal()">取消</button>
+      <button class="btn btn-success" (click)="resolveIncident()">确认解决</button>
+    </div>
+  </div>
+</div>

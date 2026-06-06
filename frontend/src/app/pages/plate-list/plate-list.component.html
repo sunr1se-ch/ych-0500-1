@@ -1,0 +1,175 @@
+<div class="page-header">
+  <h1>版材管理</h1>
+  <button class="btn btn-primary" (click)="openCreateModal()">+ 登记版材</button>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <h3>版材总数</h3>
+    <div class="stat-value">{{ getStats().total }}</div>
+  </div>
+  <div class="stat-card">
+    <h3>寿命预警</h3>
+    <div class="stat-value warning">{{ getStats().warning }}</div>
+  </div>
+  <div class="stat-card">
+    <h3>已锁定</h3>
+    <div class="stat-value danger">{{ getStats().locked }}</div>
+  </div>
+</div>
+
+<div class="card">
+  <table class="table" *ngIf="plates.length > 0; else empty">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>钢版编号</th>
+        <th>设计凹深 (μm)</th>
+        <th>寿命进度</th>
+        <th>状态</th>
+        <th>登记时间</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let plate of plates">
+        <td>{{ plate.id }}</td>
+        <td>
+          <a [routerLink]="['/plates', plate.id]">{{ plate.steelPlateNumber }}</a>
+        </td>
+        <td>{{ plate.designDepth }}</td>
+        <td style="min-width: 180px">
+          <div style="display: flex; align-items: center; gap: 10px">
+            <div class="progress-bar" style="flex: 1">
+              <div
+                class="progress-fill {{ getProgressColor(plate.lifePercentage) }}"
+                [style.width]="plate.lifePercentage + '%'"
+              ></div>
+            </div>
+            <span style="font-size: 12px; color: #666">{{ plate.impressionCount }}/{{ plate.lifeLimit }}</span>
+          </div>
+        </td>
+        <td>
+          <span class="badge {{ getStatusBadge(plate).class }}">
+            {{ getStatusBadge(plate).text }}
+          </span>
+        </td>
+        <td>{{ plate.createdAt | date : 'yyyy-MM-dd HH:mm' }}</td>
+        <td>
+          <div class="actions">
+            <button
+              class="btn btn-sm btn-outline"
+              (click)="openImpressionModal(plate.id)"
+              [disabled]="plate.isLocked"
+            >
+              压印
+            </button>
+            <a class="btn btn-sm btn-primary" [routerLink]="['/plates', plate.id]">详情</a>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <ng-template #empty>
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+      </svg>
+      <p *ngIf="loading">加载中...</p>
+      <p *ngIf="!loading">暂无版材数据，点击右上角"登记版材"开始使用</p>
+    </div>
+  </ng-template>
+</div>
+
+<div class="modal-overlay" *ngIf="showCreateModal" (click.self)="closeCreateModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>登记新版材</h2>
+      <button class="close-btn" (click)="closeCreateModal()">&times;</button>
+    </div>
+
+    <div class="form-group">
+      <label>钢版编号 *</label>
+      <input
+        type="text"
+        [(ngModel)]="newPlate.steelPlateNumber"
+        placeholder="例如: TG-2024-001"
+        maxlength="50"
+      />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>设计凹深 (μm) *</label>
+        <input
+          type="number"
+          [(ngModel)]="newPlate.designDepth"
+          placeholder="例如: 25"
+          step="0.1"
+          min="0"
+        />
+      </div>
+      <div class="form-group">
+        <label>寿命极限 (次)</label>
+        <input
+          type="number"
+          [(ngModel)]="newPlate.lifeLimit"
+          placeholder="默认: 10000"
+          min="1"
+        />
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeCreateModal()">取消</button>
+      <button class="btn btn-primary" (click)="createPlate()">登记</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" *ngIf="showImpressionModal" (click.self)="closeImpressionModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>记录压印</h2>
+      <button class="close-btn" (click)="closeImpressionModal()">&times;</button>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>X轴偏移 (μm)</label>
+        <input
+          type="number"
+          [(ngModel)]="newImpression.offsetX"
+          placeholder="例如: 0.05"
+          step="0.0001"
+        />
+      </div>
+      <div class="form-group">
+        <label>Y轴偏移 (μm)</label>
+        <input
+          type="number"
+          [(ngModel)]="newImpression.offsetY"
+          placeholder="例如: -0.03"
+          step="0.0001"
+        />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>实压温度 (°C)</label>
+      <input
+        type="number"
+        [(ngModel)]="newImpression.actualTemperature"
+        placeholder="例如: 120"
+        step="0.1"
+      />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeImpressionModal()">取消</button>
+      <button class="btn btn-primary" (click)="submitImpression()">提交</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+*.db
+*.db-journal
+*.user
+*.suo
+*.userprefs
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
